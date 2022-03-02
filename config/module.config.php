@@ -4,8 +4,8 @@ namespace BiblionumberSupport;
 
 return [
     'controllers' => [
-        'invokables' => [
-            'BiblionumberSupport\Controller\Index' => Controller\IndexController::class,
+        'factories' => [
+            'BiblionumberSupport\Controller\Index' => Service\Controller\IndexControllerFactory::class,
         ],
     ],
     'router' => [
