@@ -15,13 +15,13 @@ class IndexController extends AbstractActionController
         $siteSlug = $this->params()->fromRoute('site-slug');
         $biblionumber = $this->params()->fromRoute('biblionumber');
         $kohaVocabPropId = $this->api()->searchOne('properties', ['term' => 'koha:biblionumber'])->getContent()->id();
-    
+
         $item = $this->api()->searchOne('items', ['property' => [['property' => $kohaVocabPropId, 'text' => $biblionumber, 'type' => 'eq']]])->getContent();
-        
-        if ($item) {
-            $this->redirect()->toUrl($item->siteUrl($siteSlug));
-        } else {
+
+        if (!$item) {
             throw new NotFoundException;
         }
+
+        return $this->redirect()->toUrl($item->siteUrl($siteSlug));
     }
 }
