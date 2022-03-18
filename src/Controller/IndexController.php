@@ -46,7 +46,6 @@ class IndexController extends AbstractActionController
         } catch (\Exception $e) {
             $view = new ViewModel;
             $view->setVariable('biblionumber', $biblionumber);
-            $view->setVariable('siteSlug', $siteSlug);
 
             return $view;
         }

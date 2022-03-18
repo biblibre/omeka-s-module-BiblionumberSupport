@@ -6,4 +6,4 @@ $escapeHtml = $this->plugin('escapeHtml');?>
     <em><?php echo $biblionumber ?></em>
 </p>
 
-<a href="<?php echo $this->url('site', ['site-slug' => $siteSlug]); ?>"><button><?php echo $this->translate('Back to homepage') ?></button></a>
+<a href="<?php echo $this->url('site', [], true); ?>"><button><?php echo $this->translate('Back to homepage') ?></button></a>
