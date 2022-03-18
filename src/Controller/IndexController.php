@@ -6,6 +6,7 @@ use Doctrine\ORM\EntityManager;
 use Laminas\Mvc\Controller\AbstractActionController;
 use Omeka\Api\Adapter\Manager as ApiAdapterManager;
 use Omeka\Mvc\Exception\NotFoundException;
+use Laminas\View\Model\ViewModel;
 
 class IndexController extends AbstractActionController
 {
@@ -17,30 +18,38 @@ class IndexController extends AbstractActionController
      */
     public function redirectAction()
     {
-        $em = $this->getEntityManager();
+        try {
+            $em = $this->getEntityManager();
 
-        $siteSlug = $this->params()->fromRoute('site-slug');
-        $biblionumber = $this->params()->fromRoute('biblionumber');
+            $siteSlug = $this->params()->fromRoute('site-slug');
+            $biblionumber = $this->params()->fromRoute('biblionumber');
 
-        $kohaBiblionumberProperty = $this->api()->searchOne('properties', ['term' => 'koha:biblionumber'])->getContent();
-        if (!$kohaBiblionumberProperty) {
-            throw new NotFoundException;
+            $kohaBiblionumberProperty = $this->api()->searchOne('properties', ['term' => 'koha:biblionumber'])->getContent();
+            if (!$kohaBiblionumberProperty) {
+                throw new NotFoundException;
+            }
+
+            $query = $em->createQuery('SELECT i FROM Omeka\Entity\Item i JOIN i.values v WHERE v.type = :type AND v.property = :property AND v.value = :value');
+            $query->setParameter('type', 'literal');
+            $query->setParameter('property', $kohaBiblionumberProperty->id());
+            $query->setParameter('value', $biblionumber);
+            $query->setMaxResults(1);
+            $item = $query->getSingleResult();
+            if (!$item) {
+                throw new NotFoundException;
+            }
+
+            $itemAdapter = $this->getApiAdapterManager()->get('items');
+            $itemRepresentation = $itemAdapter->getRepresentation($item);
+
+            return $this->redirect()->toUrl($itemRepresentation->siteUrl($siteSlug));
+        } catch (\Exception $e) {
+            $view = new ViewModel;
+            $view->setVariable('biblionumber', $biblionumber);
+            $view->setVariable('siteSlug', $siteSlug);
+
+            return $view;
         }
-
-        $query = $em->createQuery('SELECT i FROM Omeka\Entity\Item i JOIN i.values v WHERE v.type = :type AND v.property = :property AND v.value = :value');
-        $query->setParameter('type', 'literal');
-        $query->setParameter('property', $kohaBiblionumberProperty->id());
-        $query->setParameter('value', $biblionumber);
-        $query->setMaxResults(1);
-        $item = $query->getSingleResult();
-        if (!$item) {
-            throw new NotFoundException;
-        }
-
-        $itemAdapter = $this->getApiAdapterManager()->get('items');
-        $itemRepresentation = $itemAdapter->getRepresentation($item);
-
-        return $this->redirect()->toUrl($itemRepresentation->siteUrl($siteSlug));
     }
 
     public function setEntityManager(EntityManager $entityManager)
