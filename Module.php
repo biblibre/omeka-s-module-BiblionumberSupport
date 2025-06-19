@@ -30,6 +30,8 @@
 namespace BiblionumberSupport;
 
 use Omeka\Module\AbstractModule;
+use Laminas\EventManager\Event;
+use Laminas\EventManager\SharedEventManagerInterface;
 use Laminas\Mvc\MvcEvent;
 
 class Module extends AbstractModule
@@ -46,5 +48,169 @@ class Module extends AbstractModule
         $acl = $this->getServiceLocator()->get('Omeka\Acl');
         $acl->allow(null, 'BiblionumberSupport\Controller\Index');
 
+    }
+
+    public function attachListeners(SharedEventManagerInterface $sharedEventManager)
+    {
+        $sharedEventManager->attach(
+            'Omeka\Api\Adapter\ItemAdapter',
+            'api.search.query',
+            [$this, 'onItemApiSearchQuery']
+        );
+
+        $sharedEventManager->attach(
+            'Omeka\Controller\Admin\Item',
+            'view.advanced_search',
+            [$this, 'onItemViewAdvancedSearch']
+        );
+
+        $sharedEventManager->attach(
+            'Omeka\Controller\Admin\Item',
+            'view.search.filters',
+            [$this, 'onItemViewSearchFilters']
+        );
+
+        $sharedEventManager->attach(
+            'Omeka\Api\Adapter\MediaAdapter',
+            'api.search.query',
+            [$this, 'onMediaApiSearchQuery']
+        );
+
+        $sharedEventManager->attach(
+            'Omeka\Controller\Admin\Media',
+            'view.advanced_search',
+            [$this, 'onMediaViewAdvancedSearch']
+        );
+
+        $sharedEventManager->attach(
+            'Omeka\Controller\Admin\Media',
+            'view.search.filters',
+            [$this, 'onMediaViewSearchFilters']
+        );
+    }
+
+    public function onItemApiSearchQuery(Event $event)
+    {
+        $adapter = $event->getTarget();
+        $qb = $event->getParam('queryBuilder');
+        $request = $event->getParam('request');
+
+        $services = $this->getServiceLocator();
+        $api = $services->get('Omeka\ApiManager');
+
+        [$kohaBiblionumberProperty] = $api->search('properties', ['term' => 'koha:biblionumber'])->getContent();
+        if (!$kohaBiblionumberProperty) {
+            //$qb->andWhere('0');
+            return;
+        }
+
+        $ids = $request->getValue('biblionumber', []);
+        if (!is_array($ids)) {
+            $ids = [$ids];
+        }
+        $ids = array_filter($ids);
+        if ($ids) {
+            $valuesAlias = $adapter->createAlias();
+            $qb->leftJoin(
+                'omeka_root.values',
+                $valuesAlias,
+                'WITH',
+                $qb->expr()->eq("$valuesAlias.property", (int) $kohaBiblionumberProperty->id())
+            );
+            $qb->andWhere(
+                $qb->expr()->in("$valuesAlias.value", $adapter->createNamedParameter($qb, $ids))
+            );
+        }
+    }
+
+    public function onItemViewAdvancedSearch(Event $event)
+    {
+        $partials = $event->getParam('partials');
+
+        $partials[] = 'biblionumber-support/common/advanced-search/biblionumber';
+
+        $event->setParam('partials', $partials);
+    }
+
+    public function onItemViewSearchFilters(Event $event)
+    {
+        $view = $event->getTarget();
+        $query = $event->getParam('query');
+        $filters = $event->getParam('filters');
+
+        $ids = $query['biblionumber'] ?? [];
+        if (!is_array($ids)) {
+            $ids = [$ids];
+        }
+        $ids = array_filter($ids);
+        if ($ids) {
+            $filters[$view->translate('Biblionumber')] = $ids;
+        }
+
+        $event->setParam('filters', $filters);
+    }
+
+    public function onMediaApiSearchQuery(Event $event)
+    {
+        $adapter = $event->getTarget();
+        $qb = $event->getParam('queryBuilder');
+        $request = $event->getParam('request');
+
+        $services = $this->getServiceLocator();
+        $api = $services->get('Omeka\ApiManager');
+
+        [$kohaBiblionumberProperty] = $api->search('properties', ['term' => 'koha:biblionumber'])->getContent();
+        if (!$kohaBiblionumberProperty) {
+            $qb->andWhere('0');
+            return;
+        }
+
+        $ids = $request->getValue('biblionumber', []);
+        if (!is_array($ids)) {
+            $ids = [$ids];
+        }
+        $ids = array_filter($ids);
+        if ($ids) {
+            $itemAlias = $adapter->createAlias();
+            $qb->leftJoin('omeka_root.item', $itemAlias);
+
+            $valuesAlias = $adapter->createAlias();
+            $qb->leftJoin(
+                "$itemAlias.values",
+                $valuesAlias,
+                'WITH',
+                $qb->expr()->eq("$valuesAlias.property", (int) $kohaBiblionumberProperty->id())
+            );
+            $qb->andWhere(
+                $qb->expr()->in("$valuesAlias.value", $adapter->createNamedParameter($qb, $ids))
+            );
+        }
+    }
+
+    public function onMediaViewAdvancedSearch(Event $event)
+    {
+        $partials = $event->getParam('partials');
+
+        $partials[] = 'biblionumber-support/common/advanced-search/biblionumber';
+
+        $event->setParam('partials', $partials);
+    }
+
+    public function onMediaViewSearchFilters(Event $event)
+    {
+        $view = $event->getTarget();
+        $query = $event->getParam('query');
+        $filters = $event->getParam('filters');
+
+        $ids = $query['biblionumber'] ?? [];
+        if (!is_array($ids)) {
+            $ids = [$ids];
+        }
+        $ids = array_filter($ids);
+        if ($ids) {
+            $filters[$view->translate('Biblionumber')] = $ids;
+        }
+
+        $event->setParam('filters', $filters);
     }
 }

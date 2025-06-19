@@ -1,0 +1,32 @@
+<?php
+$translate = $this->plugin('translate');
+// Prepare the resource class query.
+$ids = isset($query['biblionumber']) ? $query['biblionumber'] : [];
+if (!is_array($ids)) {
+    $ids = [$ids];
+}
+$ids = array_filter($ids);
+if (!$ids) {
+    $ids = [null];
+}
+?>
+<div id="biblionumber" class="field removable multi-value" role="group">
+    <div class="field-meta">
+        <span id="by-biblionumber-label" class="label"><?php echo $translate('Search by biblionumber'); ?></span>
+        <?php echo $this->hyperlink('', '#', ['class' => 'expand', 'title' => $translate('Expand')]); ?>
+        <div class="collapsible">
+            <div class="field-description"><?php echo $translate('Searches for resources by biblionumber'); ?></div>
+        </div>
+        <button type="button" class="add-value o-icon-add button" aria-label="<?php echo $translate('Add new biblionumber'); ?>" title="<?php echo $translate('Add new biblionumber'); ?>"></button>
+    </div>
+    <div class="inputs">
+        <?php foreach ($ids as $id): ?>
+        <div class="value">
+            <?php $biblionumberText = new \Laminas\Form\Element\Text('biblionumber[]') ?>
+            <?php $biblionumberText->setValue($id); ?>
+            <?= $this->formText($biblionumberText) ?>
+            <button type="button" class="o-icon-delete remove-value button" aria-label="<?php echo $translate('Remove value'); ?>" title="<?php echo $translate('Remove value'); ?>"></button>
+        </div>
+        <?php endforeach; ?>
+    </div>
+</div>

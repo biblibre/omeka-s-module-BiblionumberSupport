@@ -1,21 +1,25 @@
 # Biblionumber Support for Omeka S
 
-This module add route with embed biblionumber and redirect it to item route.
+This module is useful to keep track of biblionumber (issued from Koha) and find
+resources by biblionumber.
 
-## Description
+## Requirements
 
-This module is useful to keep track of biblionumber (issued from Koha) and use it to redirect on item route.
+* Omeka S >= 3.0.0
+* [https://git.biblibre.com/omeka-s/custom-vocabularies#koha](Koha custom vocabulary)
 
-## Warning
+## Features
 
-Use it at your own risk.
-
-It's always recommended to backup your files and your databases and to check your archives regularly so you can roll back if needed.
+* Adds a route `/s/<site-slug>/get-biblio/<biblionumber>` that redirects to the corresponding item.
+* Adds a `biblionumber` parameter to the search API for item and media
+  resources. For items, it's only a shortcut for searching in
+  `koha:biblionumber` property. For media, it searches in their items'
+  `koha:biblionumber` property.
+* Adds a search form field to use this parameter from the admin UI
 
 ## License
 
-This plugin is published under the GNU General Public License v3.0
+Copyright BibLibre, 2021-2025
 
-## Copyright
-
-Copyright BibLibre, 2015-2021
+Biblionumber Support is distributed under the GNU General Public License, version 3 (GPLv3).
+The full text of this license is given in the `LICENSE` file.
