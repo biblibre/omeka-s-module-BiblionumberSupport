@@ -6,7 +6,7 @@ resources by biblionumber.
 ## Requirements
 
 * Omeka S >= 3.0.0
-* [https://git.biblibre.com/omeka-s/custom-vocabularies#koha](Koha custom vocabulary)
+* [Koha custom vocabulary](https://git.biblibre.com/omeka-s/custom-vocabularies#koha)
 
 ## Features
 
