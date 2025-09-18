@@ -44,10 +44,9 @@ class Module extends AbstractModule
     public function onBootstrap(MvcEvent $event)
     {
         parent::onBootstrap($event);
-       
+
         $acl = $this->getServiceLocator()->get('Omeka\Acl');
         $acl->allow(null, 'BiblionumberSupport\Controller\Index');
-
     }
 
     public function attachListeners(SharedEventManagerInterface $sharedEventManager)
