@@ -51,11 +51,14 @@ class Module extends AbstractModule
 
     public function attachListeners(SharedEventManagerInterface $sharedEventManager)
     {
-        $sharedEventManager->attach(
-            'Omeka\Api\Adapter\ItemAdapter',
-            'api.search.query',
-            [$this, 'onItemApiSearchQuery']
-        );
+        $adapters = ['Omeka\Api\Adapter\ItemAdapter', 'Omeka\Api\Adapter\MediaAdapter'];
+        foreach ($adapters as $adapter) {
+            $sharedEventManager->attach(
+                $adapter,
+                'api.search.query',
+                [$this, 'onResourceApiSearchQuery']
+            );
+        }
 
         $sharedEventManager->attach(
             'Omeka\Controller\Admin\Item',
@@ -67,12 +70,6 @@ class Module extends AbstractModule
             'Omeka\Controller\Admin\Item',
             'view.search.filters',
             [$this, 'onItemViewSearchFilters']
-        );
-
-        $sharedEventManager->attach(
-            'Omeka\Api\Adapter\MediaAdapter',
-            'api.search.query',
-            [$this, 'onMediaApiSearchQuery']
         );
 
         $sharedEventManager->attach(
@@ -88,37 +85,65 @@ class Module extends AbstractModule
         );
     }
 
-    public function onItemApiSearchQuery(Event $event)
+    public function onResourceApiSearchQuery(Event $event)
     {
         $adapter = $event->getTarget();
+        $resource = $adapter->getResourceName();
         $qb = $event->getParam('queryBuilder');
         $request = $event->getParam('request');
 
         $services = $this->getServiceLocator();
         $api = $services->get('Omeka\ApiManager');
+        $connection = $services->get('Omeka\Connection');
 
         [$kohaBiblionumberProperty] = $api->search('properties', ['term' => 'koha:biblionumber'])->getContent();
         if (!$kohaBiblionumberProperty) {
-            //$qb->andWhere('0');
+            $qb->andWhere('0');
             return;
         }
 
-        $ids = $request->getValue('biblionumber', []);
-        if (!is_array($ids)) {
-            $ids = [$ids];
-        }
-        $ids = array_filter($ids);
-        if ($ids) {
-            $valuesAlias = $adapter->createAlias();
-            $qb->leftJoin(
-                'omeka_root.values',
-                $valuesAlias,
-                'WITH',
-                $qb->expr()->eq("$valuesAlias.property", (int) $kohaBiblionumberProperty->id())
-            );
-            $qb->andWhere(
-                $qb->expr()->in("$valuesAlias.value", $adapter->createNamedParameter($qb, $ids))
-            );
+        $biblionumbers = $request->getValue('biblionumber');
+        if ($biblionumbers) {
+            if (!is_array($biblionumbers)) {
+                $biblionumbers = [$biblionumbers];
+            }
+            $biblionumbers = array_filter($biblionumbers);
+
+            if ($resource == 'items') {
+                $targetEntity = 'omeka_root.id';
+            } elseif ($resource == 'media') {
+                $targetEntity = 'omeka_root.item';
+            } else {
+                $qb->andWhere('0');
+                return;
+            }
+
+            $sql = <<<'SQL'
+                SELECT `i`.`id`
+                FROM `item` AS `i`
+                JOIN `value` AS `v` ON `i`.`id` = `v`.`resource_id`
+                WHERE `v`.`type` = 'literal'
+                    AND `v`.`property_id` = ?
+                    AND `v`.`value` IN (?);
+            SQL;
+
+            $resourceIds = $connection->executeQuery(
+                $sql,
+                [
+                    $kohaBiblionumberProperty->id(),
+                    $biblionumbers,
+                ],
+                [
+                    \Doctrine\DBAL\ParameterType::INTEGER,
+                    \Doctrine\DBAL\Connection::PARAM_INT_ARRAY
+                ]
+            )->fetchAll();
+
+            if ($resourceIds) {
+                $qb->andWhere($qb->expr()->in($targetEntity, $adapter->createNamedParameter($qb, $resourceIds)));
+            } else {
+                $qb->andWhere('0');
+            }
         }
     }
 
@@ -147,43 +172,6 @@ class Module extends AbstractModule
         }
 
         $event->setParam('filters', $filters);
-    }
-
-    public function onMediaApiSearchQuery(Event $event)
-    {
-        $adapter = $event->getTarget();
-        $qb = $event->getParam('queryBuilder');
-        $request = $event->getParam('request');
-
-        $services = $this->getServiceLocator();
-        $api = $services->get('Omeka\ApiManager');
-
-        [$kohaBiblionumberProperty] = $api->search('properties', ['term' => 'koha:biblionumber'])->getContent();
-        if (!$kohaBiblionumberProperty) {
-            $qb->andWhere('0');
-            return;
-        }
-
-        $ids = $request->getValue('biblionumber', []);
-        if (!is_array($ids)) {
-            $ids = [$ids];
-        }
-        $ids = array_filter($ids);
-        if ($ids) {
-            $itemAlias = $adapter->createAlias();
-            $qb->leftJoin('omeka_root.item', $itemAlias);
-
-            $valuesAlias = $adapter->createAlias();
-            $qb->leftJoin(
-                "$itemAlias.values",
-                $valuesAlias,
-                'WITH',
-                $qb->expr()->eq("$valuesAlias.property", (int) $kohaBiblionumberProperty->id())
-            );
-            $qb->andWhere(
-                $qb->expr()->in("$valuesAlias.value", $adapter->createNamedParameter($qb, $ids))
-            );
-        }
     }
 
     public function onMediaViewAdvancedSearch(Event $event)
