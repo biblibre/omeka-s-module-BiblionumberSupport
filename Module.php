@@ -96,25 +96,24 @@ class Module extends AbstractModule
         $api = $services->get('Omeka\ApiManager');
         $connection = $services->get('Omeka\Connection');
 
-        [$kohaBiblionumberProperty] = $api->search('properties', ['term' => 'koha:biblionumber'])->getContent();
-        if (!$kohaBiblionumberProperty) {
-            $qb->andWhere('0');
-            return;
-        }
-
         $biblionumbers = $request->getValue('biblionumber');
         if ($biblionumbers) {
-            if (!is_array($biblionumbers)) {
+            if(!is_array($biblionumbers)) {
                 $biblionumbers = [$biblionumbers];
             }
-            $biblionumbers = array_filter($biblionumbers);
+            $biblionumbers = array_filter($biblionumbers, fn($value) => $value !== '');
+
+            $kohaBiblionumberProperty = $api->search('properties', ['term' => 'koha:biblionumber'])->getContent();
+            if (!$kohaBiblionumberProperty || count($biblionumbers) == 0) {
+                return;
+            }
+            [$kohaBiblionumberProperty] = $kohaBiblionumberProperty;
 
             if ($resource == 'items') {
                 $targetEntity = 'omeka_root.id';
             } elseif ($resource == 'media') {
                 $targetEntity = 'omeka_root.item';
             } else {
-                $qb->andWhere('1=0');
                 return;
             }
 
