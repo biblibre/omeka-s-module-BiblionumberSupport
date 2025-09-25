@@ -114,7 +114,7 @@ class Module extends AbstractModule
             } elseif ($resource == 'media') {
                 $targetEntity = 'omeka_root.item';
             } else {
-                $qb->andWhere('0');
+                $qb->andWhere('1=0');
                 return;
             }
 
@@ -142,7 +142,7 @@ class Module extends AbstractModule
             if ($resourceIds) {
                 $qb->andWhere($qb->expr()->in($targetEntity, $adapter->createNamedParameter($qb, $resourceIds)));
             } else {
-                $qb->andWhere('0');
+                $qb->andWhere('1=0');
             }
         }
     }
