@@ -5,7 +5,7 @@ $ids = isset($query['biblionumber']) ? $query['biblionumber'] : [];
 if (!is_array($ids)) {
     $ids = [$ids];
 }
-$ids = array_filter($ids);
+$ids = array_filter($ids, fn($id) => $id !== '');
 if (!$ids) {
     $ids = [null];
 }

@@ -60,29 +60,20 @@ class Module extends AbstractModule
             );
         }
 
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Item',
-            'view.advanced_search',
-            [$this, 'onItemViewAdvancedSearch']
-        );
+        $controllers = ['Omeka\Controller\Admin\Item', 'Omeka\Controller\Admin\Media'];
+        foreach ($controllers as $controller) {
+            $sharedEventManager->attach(
+                $controller,
+                'view.advanced_search',
+                [$this, 'onResourceViewAdvancedSearch']
+            );
 
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Item',
-            'view.search.filters',
-            [$this, 'onItemViewSearchFilters']
-        );
-
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Media',
-            'view.advanced_search',
-            [$this, 'onMediaViewAdvancedSearch']
-        );
-
-        $sharedEventManager->attach(
-            'Omeka\Controller\Admin\Media',
-            'view.search.filters',
-            [$this, 'onMediaViewSearchFilters']
-        );
+            $sharedEventManager->attach(
+                $controller,
+                'view.search.filters',
+                [$this, 'onResourceViewSearchFilters']
+            );
+        }
     }
 
     public function onResourceApiSearchQuery(Event $event)
@@ -98,17 +89,17 @@ class Module extends AbstractModule
 
         $biblionumbers = $request->getValue('biblionumber');
         if ($biblionumbers) {
-            if(!is_array($biblionumbers)) {
+            if (!is_array($biblionumbers)) {
                 $biblionumbers = [$biblionumbers];
             }
             $biblionumbers = array_filter($biblionumbers, fn($value) => $value !== '');
 
             $kohaBiblionumberProperty = $api->search('properties', ['term' => 'koha:biblionumber'])->getContent();
             if (!$kohaBiblionumberProperty || count($biblionumbers) == 0) {
+                $qb->andWhere('1=0');
                 return;
             }
             [$kohaBiblionumberProperty] = $kohaBiblionumberProperty;
-
             if ($resource == 'items') {
                 $targetEntity = 'omeka_root.id';
             } elseif ($resource == 'media') {
@@ -146,16 +137,7 @@ class Module extends AbstractModule
         }
     }
 
-    public function onItemViewAdvancedSearch(Event $event)
-    {
-        $partials = $event->getParam('partials');
-
-        $partials[] = 'biblionumber-support/common/advanced-search/biblionumber';
-
-        $event->setParam('partials', $partials);
-    }
-
-    public function onItemViewSearchFilters(Event $event)
+    public function onResourceViewSearchFilters(Event $event)
     {
         $view = $event->getTarget();
         $query = $event->getParam('query');
@@ -165,38 +147,19 @@ class Module extends AbstractModule
         if (!is_array($ids)) {
             $ids = [$ids];
         }
-        $ids = array_filter($ids);
+        $ids = array_filter($ids, fn($id) => $id !== '');
         if ($ids) {
             $filters[$view->translate('Biblionumber')] = $ids;
         }
-
         $event->setParam('filters', $filters);
     }
 
-    public function onMediaViewAdvancedSearch(Event $event)
+    public function onResourceViewAdvancedSearch(Event $event)
     {
         $partials = $event->getParam('partials');
 
         $partials[] = 'biblionumber-support/common/advanced-search/biblionumber';
 
         $event->setParam('partials', $partials);
-    }
-
-    public function onMediaViewSearchFilters(Event $event)
-    {
-        $view = $event->getTarget();
-        $query = $event->getParam('query');
-        $filters = $event->getParam('filters');
-
-        $ids = $query['biblionumber'] ?? [];
-        if (!is_array($ids)) {
-            $ids = [$ids];
-        }
-        $ids = array_filter($ids);
-        if ($ids) {
-            $filters[$view->translate('Biblionumber')] = $ids;
-        }
-
-        $event->setParam('filters', $filters);
     }
 }
